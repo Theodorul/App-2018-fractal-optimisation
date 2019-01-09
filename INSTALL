@@ -1,0 +1,31 @@
+Installation of Mandel 0.7.0 (31/07/2002)
+-----------------------------------------
+
+Since Mandel is quite teeny, a precompiled copy is included as well as the
+source code. The precompiled program has been compiled with gcc / glibc on
+an x86 linux computer, so should work happily enough on most x86 linux
+systems.
+
+If you wish to compile yourself, a (very simple) makefile is included, just
+type;
+
+make
+
+and mandel should compile up if you have gcc. If you are working on a
+different unix platform with a different compiler, you'll probably need to
+customise the makefile for your particular setup (any suggested improvements
+are more than welcome :-)
+
+If you are working on a Windows platform, older versions of the program
+have been bribed to compile under MS VC++. You would need to create a
+suitable project and make all the necessary tweeks yourself though. One
+major sticking point is the fopenp() standard function; this is used to open
+the output file stream to disk, but behaves differently in the Microsoft
+world. You'll need to adjust the code to make sure that fopen() opens the
+stream as binary, as the Microsoft default is to write ascii (which adds
+many spurious 'carriage return' codes and generally makes a mess of things).
+
+Whatever way, I hope you enjoy the software and have fun :-)
+
+------------------------
+Phil Stewart, 31/07/2002

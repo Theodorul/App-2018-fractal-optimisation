@@ -1,0 +1,195 @@
+Readme file for Mandel 0.7.0 PS (31/07/2002)
+============================================
+
+This file contains the following information:
+
+ - What the program does
+ - How to use the program
+ - How the program works (and the maths behind it)
+ - The License Agreement
+ - Author information
+
+For install info, see the INSTALL file.
+
+This doument is due a major re-write to shift out most the info into proper
+documentation.
+ 
+What the program does
+---------------------
+
+Mandel generates images from the mandelbrot set, called fractals. It is a
+command line program, which makes it somewhat more cumbersome than GUI fractal
+programs. The advantage is it has less processing to do than its GUI counter-
+parts so is probably faster. Its output is a bitmap file which you can view
+using xv or another bitmap supporting graphics editor/viewer. I like using
+Eye of Gnome, because you can easily navigate round the kinds of huge
+bitmaps that mandel can generate.
+
+How to use the program
+----------------------
+
+As I said above, you have to give the program all its information in the
+command line, which takes the following form:
+
+./mandel --left [val] --right [val] --bottom [val] --top [val]
+         --increment [val] --multiplier [val] --algorithm [val] FILENAME
+
+Note that although I've written the parameters across two lines, you should
+enter all parameters on the same line.
+
+So what does all that mean?
+
+--left : The left bound of the bitmap.
+--right : The right bound of the bitmap.
+--bottom : The bottom bound of the bitmap.
+--top : The top bound of the bitmap.
+--increment : The amount to increment by for each new calculation, the inverse
+  of the resolution i.e. for a resolution of 100 pixels per unit, use an
+  increment of 0.01.
+--multiplier : The number of iterations to compute * 256, essential for high
+  detail zooms. If unspecified, this will default to 1, i.e. 256 iterations.
+--algorithm : Specifies which algorithm to use; defaults to 1 if
+  unspecified.
+FILENAME : The file you want to output to.
+
+WARNING: Mandel will, without prompting, overwrite FILENAME if FILENAME
+already exists. I may change this in future.
+
+A good initial set of values to try would be:
+
+./mandel --left -2 --right 2 --bottom -2 --top 2 --increment 0.01 mandel.bmp
+
+When you run the program you will see a load of numbers scroll across the
+screen. Don't worry, these are just values being processed (between the
+range of --bottom  and --top) to give you an idea of how much progress has been
+made. The above gives a fairly good output, however a better one is:
+
+./mandel -l -2.49 -r 1.5 -b -2 -t 2 -i 0.01 mandel2.bmp
+
+Note you can use the following parameter abreviations, as in the above
+example:
+
+-l for --left, -r for --right, -b for --bottom, -t for --top
+-i for --increment, -m for --multiple, -a for --algorithm
+
+The --algorithm option allows you to choose between the standard algorithm,
+and the second algorithm which allocates colours to values differently. The
+second algorithm is often preferred, as highlights detail better. Try it:
+
+./mandel -l -2.49 -r 1.5 -b -2 -t 2 -i 0.01 -a mandel2.bmp
+
+Unless you use integer values (which you won't be mostly) I advise adding
+the increment to the lower bound value --left, otherwise the output
+could be screwed up (this is a bug I haven't fully ironed out yet). A good
+example is:
+
+./mandel -l -0.6995 -r -0.3000 -b 0.5005 -t 0.8000 -i 0.0005 -m 32 -a 2 im4.bmp
+
+The program outputs 8 bit Windows RGB bitmaps, which can take a long time to
+generate, and also rapidly fill up your hard drive. The program will warn you
+if you tell it to do anything really large, so you can stop it if you made a
+mistake. The light areas of the images are members of the mandelbrot set,
+the dark areas are not. The reasons for this are revealed below. 
+
+How the program works
+---------------------
+
+This is where things get a little technical and mathematical, so if it makes
+your brain hurt feel free to skip over it.
+
+The mandelbrot set is defined to be the values of the complex variable l for
+which the iteration
+
+Zn = Zn-1 ^2 + l
+
+does not diverge (e.g. it converges to a fixed value, periodically repeats,
+or behaves chaotically). Mandel processes the iteration for the range of
+values of l which you input.
+
+So how is this done? Obviously there are some fairly nasty pitfalls when
+trying to calculate complex numbers, namely the fact that computers can't
+handle square rooting -1, it tells you to stop being an idiot and input some
+sensible value. The trick is to split the numbers into their real and
+imaginary components. This can be done by expanding the genreal form of the
+iteration as follows:
+
+Z = (a + bj)^2 + c + dj
+  = a^2 + 2abj + bj^2 + c + dj
+  = a^2 + 2abj - b^2 + c + dj
+  
+Hopefully it should now be obvious how this can be split into real and
+imaginary components:
+
+Zr = a^2 - b^2 + c
+Zj = 2abj + dj
+
+If you look at the source code you should be able to see the two lines which
+do this. The program will process the iteration until 1 of 2 situations
+occur. If the modulus of Z passes 100 the program will stop computing the
+iteration, and the number of iterations will be low, indicating a divergent
+none member of the set. If the number of iterations reaches 255 then the
+program will stop computing, the large number of iterations indicating a
+very probable member of the set. This is where the multiplier comes in - if
+you are examining a very small area of the set you need to have more
+iterations as some values will take longer to diverge to 100.
+
+So we've seen how the number of iterations is worked out. This number is
+then simply output to the bitmap. So low iterations (divergent non-members)
+appear black, high iterations (non-divergent members) appear white. Then
+it's simply a matter of processing the iterations for all the values of l.
+
+One problem that occurs when using a very high number of iterations is that
+the same 256 shades of grey are repeated over and over, hence at the highest
+levels of detail where, for example one value may have stopped iterating at
+3500 iterations and an adjacent value may have stopped at 3900 iterations, a
+linear allocation of values (as the remainder of iterations / 256) becomes
+chaotic and the detail is hidden. This is where logarithmic allocation comes
+in. The idea behind this is that colour is allocated on a logarithmic scale,
+hence low numbers of iterations will receive many more colours than high
+numbers of iterations. Hence the 3500 and 3900 example given above may share
+the same colour value, or perhaps adjacent colour values, whereas in the
+same image 40 and 80 iterations would still have a large degree of
+seperation. If you prefer the maths that define this then this is how the
+colour allocation is calculated:
+
+colour value =  log(iteration)          * 255
+              / log(maximum iterations)
+
+It has been a while since I implemented this feature so I can't remember how
+this formula was derived, however you may be able to figure it out for
+yourself - its something to pass the time while a fractal computes.
+
+The License Agreement
+---------------------
+
+The software is released under the GNU General Public License, i.e. open
+source, so as such you are permitted (and encouraged) to use, distribute,
+and modify the software to the extent allowed by the GPL.
+
+A copy of the GNU GPL has been included in LICENSE.
+
+Author information
+------------------
+
+Written by Phil Stewart, phil.stewart@lichp.co.uk
+
+I am currently studying (*cough*) for a Maths degree at the Imperial College
+in London. Thanks to all the profs and docs and lecturerers and people
+who've generally had a positive influence on my degree at Imperial :-)
+
+This program was originally developed in 1999, and was last worked on in
+2000, during my A-Levels, so all the earlier credits:
+
+Many thanks to my parents for providing me with tea, beer, electricity and a
+phone line, Mr. Bodo for teaching me Complex Numbers and loads of other maths,
+the great people who write and maintain gcc, glibc, and all the tons of
+other software that I need to code with, Linus Torvalds for creating Linux,
+and Benoit Mandelbrot for discovering the spectacular fractals which my
+program generates.
+
+Remember, if it takes five hours to compute and you get a bad result,
+computer monitors are worth more than keyboards ...
+
+Mandel Copyright (c) 1999-2002 Phil Stewart 
+-------------------------------------------------------------------------------
+EOF PS (31/07/2002)
